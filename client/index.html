@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <script src="webrtc.js"></script>
+</head>
+
+<body>
+<video id="localVideo" autoplay muted style="width:40%;"></video>
+<video id="remoteVideo" autoplay style="width:40%;"></video>
+
+<br/>
+
+<input type="button" id="start" onclick="start(true)" value="Start Video"/>
+<form id="fileInfo">
+    <input type="file" id="fileInput" name="files"/>
+</form>
+<button disabled id="sendFile">Send</button>
+<button disabled id="abortButton">Abort</button>
+<div class="progress">
+    <div class="label">Send progress:</div>
+    <progress id="sendProgress" max="0" value="0"></progress>
+</div>
+
+<div class="progress">
+    <div class="label">Receive progress:</div>
+    <progress id="receiveProgress" max="0" value="0"></progress>
+</div>
+
+<div id="bitrate"></div>
+<a id="download"></a>
+<span id="status"></span>
+
+<div class="messagebox">
+    <label for="message">Enter a message:
+        <input type="text" name="message" id="message" placeholder="Message text"
+               inputmode="latin" size=60 maxlength=120 disabled>
+    </label>
+    <button id="sendButton" name="sendButton" class="buttonright" disabled>
+        Send
+    </button>
+</div>
+<div class="messagebox" id="receivebox">
+    <p>Messages received:</p>
+</div>
+<script type="text/javascript">
+    pageReady();
+</script>
+</body>
+</html>
