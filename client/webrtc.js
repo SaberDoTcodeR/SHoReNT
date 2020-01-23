@@ -4,13 +4,13 @@ var remoteVideo;
 var peerConnection;
 var uuid;
 var serverConnection;
-
+var dest_UUID
 
 var channel;
 
 var peerConnectionConfig = {
     'iceServers': [
-        {'urls': 'stun:194.225.46.142:3478'}//should be updated
+        {'urls': 'stun:stun.l.google.com:19302'}//should be updated
 
     ]
 };
@@ -68,15 +68,15 @@ function handleReceiveChannelStatusChange(event) {
 }
 
 function pageReady() {
-    uuid = createUUID();
 
-    localVideo = document.getElementById('localVideo');
-    remoteVideo = document.getElementById('remoteVideo');
+
+    //localVideo = document.getElementById('localVideo');
+    //remoteVideo = document.getElementById('remoteVideo');
 
     serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
     serverConnection.onmessage = gotMessageFromServer;
 
-    var constraints = {
+    /*var constraints = {
         video: true,
         audio: true,
     };
@@ -85,7 +85,7 @@ function pageReady() {
         navigator.mediaDevices.getUserMedia(constraints).then(getUserMediaSuccess).catch(errorHandler);
     } else {
         alert('Your browser does not support getUserMedia API');
-    }
+    }*/
 }
 
 function getUserMediaSuccess(stream) {
@@ -96,13 +96,15 @@ function getUserMediaSuccess(stream) {
 function start(isCaller) {
     peerConnection = new RTCPeerConnection(peerConnectionConfig);
     peerConnection.onicecandidate = gotIceCandidate;
-    peerConnection.ontrack = gotRemoteStream;
-    peerConnection.addStream(localStream);
+
+    //peerConnection.ontrack = gotRemoteStream;
+    // peerConnection.addStream(localStream);
     openDataChannel();
     peerConnection.ondatachannel = receiveChannelCallback;
 
 
     if (isCaller) {
+        dest_UUID=prompt("dest UUID","UUID");
         peerConnection.createOffer().then(createdDescription).catch(errorHandler);
     }
 
@@ -114,12 +116,17 @@ function gotMessageFromServer(message) {
     var signal = JSON.parse(message.data);
 
     // Ignore messages from ourself
+    if ("given_uuid" in signal){
+        uuid=signal.given_uuid;
+        return;
+    }
     if (signal.uuid == uuid) return;
 
     if (signal.sdp) {
         peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(function () {
             // Only create answers in response to offers
             if (signal.sdp.type == 'offer') {
+                dest_UUID=signal.uuid;
                 peerConnection.createAnswer().then(createdDescription).catch(errorHandler);
             }
         }).catch(errorHandler);
@@ -130,15 +137,15 @@ function gotMessageFromServer(message) {
 
 function gotIceCandidate(event) {
     if (event.candidate != null) {
-        serverConnection.send(JSON.stringify({'ice': event.candidate, 'uuid': uuid}));
+        serverConnection.send(JSON.stringify({'ice': event.candidate, 'uuid': uuid,'dest_uuid': dest_UUID}));
     }
 }
 
 function createdDescription(description) {
-    console.log('got description');
-
+    console.log(uuid);
+    console.log(dest_UUID);
     peerConnection.setLocalDescription(description).then(function () {
-        serverConnection.send(JSON.stringify({'sdp': peerConnection.localDescription, 'uuid': uuid}));
+        serverConnection.send(JSON.stringify({'sdp': peerConnection.localDescription, 'uuid': uuid ,'dest_uuid': dest_UUID}));
     }).catch(errorHandler);
 }
 
@@ -151,15 +158,7 @@ function errorHandler(error) {
     console.log(error);
 }
 
-// Taken from http://stackoverflow.com/a/105074/515584
-// Strictly speaking, it's not a real UUID, but it gets the job done here
-function createUUID() {
-    function s4() {
-        return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-    }
 
-    return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
-}
 
 function openDataChannel() {
 
