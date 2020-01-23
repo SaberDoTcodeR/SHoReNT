@@ -36,4 +36,4 @@ WebRTC is a rapidly evolving beast. We are trying to make our app works as smoot
 
 The MIT License (MIT)
 
-Copyright (c) 2019
+Copyright (c) 2020
