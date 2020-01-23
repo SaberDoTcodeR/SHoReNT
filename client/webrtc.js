@@ -10,7 +10,7 @@ var channel;
 
 var peerConnectionConfig = {
     'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'}//should be updated
+        {'urls': 'stun:194.225.47.253:3478'}//should be updated
 
     ]
 };
@@ -67,46 +67,52 @@ function handleReceiveChannelStatusChange(event) {
     // when the channel's status changes.
 }
 
-function pageReady() {
+async function pageReady() {
 
 
-    //localVideo = document.getElementById('localVideo');
-    //remoteVideo = document.getElementById('remoteVideo');
+    localVideo = document.getElementById('localVideo');
+    remoteVideo = document.getElementById('remoteVideo');
 
     serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
     serverConnection.onmessage = gotMessageFromServer;
 
-    /*var constraints = {
+    var constraints = {
         video: true,
         audio: true,
     };
 
     if (navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia(constraints).then(getUserMediaSuccess).catch(errorHandler);
+        await navigator.mediaDevices.getUserMedia(constraints).then(getUserMediaSuccess).catch(errorHandler);
+
     } else {
         alert('Your browser does not support getUserMedia API');
-    }*/
+    }
 }
 
 function getUserMediaSuccess(stream) {
     localStream = stream;
     localVideo.srcObject = stream;
+
 }
 
 function start(isCaller) {
     peerConnection = new RTCPeerConnection(peerConnectionConfig);
     peerConnection.onicecandidate = gotIceCandidate;
 
-    //peerConnection.ontrack = gotRemoteStream;
-    // peerConnection.addStream(localStream);
+    peerConnection.ontrack = gotRemoteStream;
+
+
     openDataChannel();
     peerConnection.ondatachannel = receiveChannelCallback;
 
 
     if (isCaller) {
-        dest_UUID=prompt("dest UUID","UUID");
+        dest_UUID = prompt("dest UUID", "UUID");
         peerConnection.createOffer().then(createdDescription).catch(errorHandler);
+        peerConnection.addStream(localStream);
+
     }
+
 
 }
 
@@ -114,38 +120,62 @@ function gotMessageFromServer(message) {
     if (!peerConnection) start(false);
 
     var signal = JSON.parse(message.data);
-
-    // Ignore messages from ourself
-    if ("given_uuid" in signal){
-        uuid=signal.given_uuid;
+    console.log(signal)
+    if ("error" in signal) {
+        alert(signal.error);
         return;
     }
+    if ("cancel" in signal) {
+        if (signal.cancel) {
+            alert("heyy");
+            cancel();
+            return;
+        }
+    }
+    if ("given_uuid" in signal) {
+        uuid = signal.given_uuid;
+        console.log(uuid)
+        return;
+    }
+
+    // Ignore messages from ourself
     if (signal.uuid == uuid) return;
 
     if (signal.sdp) {
         peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(function () {
             // Only create answers in response to offers
             if (signal.sdp.type == 'offer') {
-                dest_UUID=signal.uuid;
-                peerConnection.createAnswer().then(createdDescription).catch(errorHandler);
+                if (confirm('You have an offer from ' + signal.uuid + ' ,do you want to start p2p connetion?')) {
+                    dest_UUID = signal.uuid;
+                    peerConnection.createAnswer().then(createdDescription).catch(errorHandler);
+                    serverConnection.send(JSON.stringify({'cancel': false, 'uuid': uuid}));
+
+                } else {
+                    serverConnection.send(JSON.stringify({'uuid': uuid, 'dest_uuid': signal.uuid, 'refuse': true}));
+
+                }
             }
         }).catch(errorHandler);
     } else if (signal.ice) {
         peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice)).catch(errorHandler);
+        peerConnection.addStream(localStream);
     }
 }
 
 function gotIceCandidate(event) {
     if (event.candidate != null) {
-        serverConnection.send(JSON.stringify({'ice': event.candidate, 'uuid': uuid,'dest_uuid': dest_UUID}));
+        serverConnection.send(JSON.stringify({'ice': event.candidate, 'uuid': uuid, 'dest_uuid': dest_UUID}));
     }
 }
 
 function createdDescription(description) {
-    console.log(uuid);
-    console.log(dest_UUID);
+
     peerConnection.setLocalDescription(description).then(function () {
-        serverConnection.send(JSON.stringify({'sdp': peerConnection.localDescription, 'uuid': uuid ,'dest_uuid': dest_UUID}));
+        serverConnection.send(JSON.stringify({
+            'sdp': peerConnection.localDescription,
+            'uuid': uuid,
+            'dest_uuid': dest_UUID
+        }));
     }).catch(errorHandler);
 }
 
@@ -157,7 +187,6 @@ function gotRemoteStream(event) {
 function errorHandler(error) {
     console.log(error);
 }
-
 
 
 function openDataChannel() {
@@ -189,6 +218,15 @@ function openDataChannel() {
     };
 
 
+}
+
+function cancel() {
+    serverConnection.send(JSON.stringify({'cancel': true, 'uuid': uuid, 'dest_uuid': dest_UUID}));
+    peerConnection.close();
+    dest_UUID = null
+    messageInputBox.disabled = true;
+    sendButton.disabled = true;
+    channel.close();
 }
 
 window.addEventListener('load', startup, false);

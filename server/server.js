@@ -3,65 +3,92 @@ const HTTPS_PORT = 8443;
 const fs = require('fs');
 const https = require('https');
 const WebSocket = require('ws');
-const WebSocketServer = WebSocket.Server;
+try {
+    const WebSocketServer = WebSocket.Server;
 
 // Yes, TLS is required
-const serverConfig = {
-    key: fs.readFileSync('key.pem'),
-    cert: fs.readFileSync('cert.pem'),
-};
+    const serverConfig = {
+        key: fs.readFileSync('key.pem'),
+        cert: fs.readFileSync('cert.pem'),
+    };
 
 // ----------------------------------------------------------------------------------------
 
 // Create a server for the client html page
-const handleRequest = function (request, response) {
-    // Render the single client html file for any request the HTTP server receives
-    console.log('request received: ' + request.url);
+    const handleRequest = function (request, response) {
+        // Render the single client html file for any request the HTTP server receives
+        console.log('request received: ' + request.url);
 
-    if (request.url === '/') {
-        response.writeHead(200, {'Content-Type': 'text/html'});
-        response.end(fs.readFileSync('client/index.html'));
-    } else if (request.url === '/webrtc.js') {
-        response.writeHead(200, {'Content-Type': 'application/javascript'});
-        response.end(fs.readFileSync('client/webrtc.js'));
-    }
-};
+        if (request.url === '/') {
+            response.writeHead(200, {'Content-Type': 'text/html'});
+            response.end(fs.readFileSync('client/index.html'));
+        } else if (request.url === '/webrtc.js') {
+            response.writeHead(200, {'Content-Type': 'application/javascript'});
+            response.end(fs.readFileSync('client/webrtc.js'));
+        }
+    };
 
-const httpsServer = https.createServer(serverConfig, handleRequest);
-httpsServer.listen(HTTPS_PORT, '0.0.0.0');
+    const httpsServer = https.createServer(serverConfig, handleRequest);
+    httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 
 // ----------------------------------------------------------------------------------------
 
 // Create a server for handling websocket calls
-const wss = new WebSocketServer({server: httpsServer});
-var clients={};
-wss.on('connection', function (ws) {
-    var UUID=createUUID();
-    clients[UUID]=ws;
-    console.log(UUID);
-    ws.send(JSON.stringify({"given_uuid": UUID}));
-    ws.on('message', function (message) {
-        var signal = JSON.parse(message);
-        console.log('received: %s', signal);
-        if ("dest_uuid" in signal){
-            // send offer to specefic client
-            wss.send_offer(signal,message);
-        }
 
+    const wss = new WebSocketServer({server: httpsServer});
+    var clients = {};
 
+    wss.on('connection', function (ws) {
+        let UUID = createUUID();
+        clients[UUID] = [ws, true];//second field is for availability
+        ws.send(JSON.stringify({"given_uuid": UUID}));
+        console.log(UUID)
+        ws.on('message', function (message) {
+            var signal = JSON.parse(message);
+            console.log(signal)
+            if ("dest_uuid" in signal) {
+                // send offer to specific client
+                if ("refuse" in signal) {
+                    wss.send_offer(signal, JSON.stringify({"error": "Sorry, but your mate refused you, find some one else"}))
+                } else if ("cancel" in signal) {
+                    if (signal.cancel) {
+                        let client = clients[signal.uuid][0];
+                        let client2 = clients[signal.dest_uuid][0];
+                        clients[signal.uuid] = [client, true]
+                        clients[signal.dest_uuid] = [client2, true]
+                        client2.send(JSON.stringify({
+                            'cancel': true,
+                            'uuid': signal.dest_uuid,
+                            'dest_uuid': signal.uuid
+                        }));
+
+                    } else {
+                        let client = clients[signal.uuid][0];
+                        clients[signal.uuid] = [client, false]
+                    }
+                } else {
+                    if (!wss.send_offer(signal, message)) {
+                        ws.send(JSON.stringify({"error": "Couldn't find anyone with given UUID"}));
+                    }
+                }
+            }
+        });
     });
-});
 
-wss.send_offer = function (data,message) {
-    if (clients.hasOwnProperty(data.dest_uuid)){
-        client=clients[data.dest_uuid];
-        if (client.readyState === WebSocket.OPEN ) {
-            console.log(data.dest_uuid)
-            client.send(message);
+    wss.send_offer = function (data, message) {
+        if (clients.hasOwnProperty(data.dest_uuid)) {
+            let client = clients[data.dest_uuid][0];
+            if (client.readyState === WebSocket.OPEN && clients[data.dest_uuid][1]) {
+                console.log(data.dest_uuid)
+                client.send(message);
+            }
+            return true;
+        } else {
+            return false;
         }
-        return;
-    }
-};
+    };
+} catch (e) {
+}
 
 console.log('Server running. Visit https://localhost:' + HTTPS_PORT + ' in Firefox/Chrome.\n\n\
 Some important notes:\n\
