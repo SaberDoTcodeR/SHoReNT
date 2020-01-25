@@ -10,7 +10,7 @@ var channel;
 
 var peerConnectionConfig = {
     'iceServers': [
-        {'urls': 'stun:194.225.47.253:3478'}//should be updated
+        {'urls': 'stun:stun.l.google.com:19302'}//should be updated
 
     ]
 };
