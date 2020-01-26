@@ -1,7 +1,7 @@
 {
-  "name": "WebRTC-Example",
-  "version": "1.0.0",
-  "description": "An 'as simple as it gets' WebRTC example.",
+  "name": "SHoReNTL",
+  "version": "0.0.0",
+  "description": "P2P connection in Sharif network",
   "main": "index.js",
   "scripts": {
     "start": "node server/server.js",
@@ -9,17 +9,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shanet/WebRTC-Example.git"
+    "url": "git+https://github.com/SaberDoTcodeR/SHoReNT.git"
   },
   "keywords": [
     "webrtc"
   ],
-  "author": "shane tully",
+  "author": "Saber Zafarpoor",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/shanet/WebRTC-Example/issues"
+    "url": "https://github.com/SaberDoTcodeR/SHoReNT"
   },
-  "homepage": "https://github.com/shanet/WebRTC-Example#readme",
+  "homepage": "https://github.com/SaberDoTcodeR/SHoReNT",
   "dependencies": {
     "ws": "^3.3.2"
   }
