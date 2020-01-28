@@ -37,52 +37,95 @@ try {
 
     const wss = new WebSocketServer({server: httpsServer});
     var clients = {};
-
+    var conections = {};
     wss.on('connection', function (ws) {
-        let UUID = createUUID();
-        clients[UUID] = [ws, true];//second field is for availability
-        ws.send(JSON.stringify({"given_uuid": UUID}));
+        var UUID = createUUID();
+        clients[UUID] = ws;
+        ws.send(JSON.stringify({"msg_id": 1, "uuid": UUID}));
         console.log(UUID)
         ws.on('message', function (message) {
             var signal = JSON.parse(message);
-            console.log(signal)
-            if ("dest_uuid" in signal) {
-                // send offer to specific client
-                if ("refuse" in signal) {
-                    wss.send_offer(signal, JSON.stringify({"error": "Sorry, but your mate refused you, find some one else"}))
-                } else if ("cancel" in signal) {
-                    if (signal.cancel) {
-                        let client = clients[signal.uuid][0];
-                        let client2 = clients[signal.dest_uuid][0];
-                        clients[signal.uuid] = [client, true]
-                        clients[signal.dest_uuid] = [client2, true]
-                        client2.send(JSON.stringify({
-                            'cancel': true,
-                            'uuid': signal.dest_uuid,
-                            'dest_uuid': signal.uuid
-                        }));
+            console.log(signal);
 
-                    } else {
-                        let client = clients[signal.uuid][0];
-                        clients[signal.uuid] = [client, false]
-                    }
-                } else {
+
+            switch (signal.msg_id) {
+                case 2:
+                case 4:
                     if (!wss.send_offer(signal, message)) {
-                        ws.send(JSON.stringify({"error": "Couldn't find anyone with given UUID"}));
+                        ws.send(JSON.stringify({"msg_id": 3, "error": "Couldn't find anyone with given UUID"}));
+                        return;
                     }
-                }
+                    return;
+                case 5:
+                    var client2 = clients[signal.dest_uuid];
+                    delete conections[signal.uuid];
+                    delete conections[signal.dest_uuid];
+                    client2.send(JSON.stringify({
+                        "msg_id": 5,
+                        'uuid': signal.dest_uuid,
+                        'dest_uuid': signal.uuid
+                    }));
+                    return;
+                case 6:
+                    wss.send_offer(signal, JSON.stringify({
+                        "msg_id": 3,
+                        "error": "Sorry, but your mate refused you, find some one else"
+                    }));
+                    return;
+                case 7:
+                    var client = clients[signal.uuid];
+                    var client2 = clients[signal.dest_uuid];
+                    conections[signal.uuid] = client2;
+                    conections[signal.dest_uuid] = client;
+                    return;
+                case 8:
+                    client2 = clients[signal.dest_uuid];
+                    if (conections[signal.dest_uuid]) {
+                        ws.send(JSON.stringify({
+                            "msg_id": 3,
+                            "error": "Sorry, but your mate is Busy right now."
+                        }));
+                    } else {
+                        client2.send(JSON.stringify({
+                            "msg_id": 8,
+                            "uuid": signal.uuid,
+                            "dest_uuid": signal.dest_uuid
+                        }));
+                    }
+                    return;
+                case 9:
+                    var client2 = clients[signal.dest_uuid];
+                    if (!conections[signal.dest_uuid]) {
+                        client2.send(JSON.stringify({
+                            "msg_id": 9,
+                            "uuid": signal.dest_uuid,
+                            "dest_uuid": signal.uuid
+                        }));
+                    }
+                    return;
+                default:
+                    console.log("why the fucK", signal);
+
             }
+
+        });
+        ws.on('error', function (err) {
+            console.log('error!');
+            return;
         });
     });
 
+
     wss.send_offer = function (data, message) {
         if (clients.hasOwnProperty(data.dest_uuid)) {
-            let client = clients[data.dest_uuid][0];
-            if (client.readyState === WebSocket.OPEN && clients[data.dest_uuid][1]) {
-                console.log(data.dest_uuid)
+            var client = clients[data.dest_uuid];
+
+            if (client.readyState === WebSocket.OPEN && !conections[data.dest_uuid]) {
+                console.log(data.dest_uuid);
                 client.send(message);
+                return true;
             }
-            return true;
+            return false;
         } else {
             return false;
         }
