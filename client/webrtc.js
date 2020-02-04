@@ -2,15 +2,16 @@ var localVideo;
 var localStream;
 var remoteVideo;
 var peerConnection;
-var uuid;
 var serverConnection;
-var dest_UUID;
-
 var channel;
+
+let uuid;
+let dest_UUID;
+
 
 var peerConnectionConfig = {
     'iceServers': [
-        {'urls': 'stun:194.225.43.38:3478'}//should be updated
+        {'urls': 'stun:81.31.176.114:3478'}//should be updated
 
     ]
 };
@@ -100,6 +101,10 @@ function start(isCaller) {
     peerConnection.onicecandidate = gotIceCandidate;
 
     peerConnection.ontrack = gotRemoteStream;
+    if (serverConnection.readyState === WebSocket.CLOSED) {
+        serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
+        serverConnection.onmessage = gotMessageFromServer;
+    }
 
     openDataChannel();
     peerConnection.ondatachannel = receiveChannelCallback;
@@ -107,6 +112,7 @@ function start(isCaller) {
 
     if (isCaller) {
         dest_UUID = prompt("dest UUID", "UUID");
+
         serverConnection.send(JSON.stringify({
             "msg_id": 8,
             'uuid': uuid,
@@ -159,7 +165,8 @@ function gotMessageFromServer(message) {
                 serverConnection.send(JSON.stringify({"msg_id": 6, 'uuid': uuid, 'dest_uuid': signal.uuid}));
             } else {
                 start(false);
-                serverConnection.send(JSON.stringify({"msg_id": 9, 'uuid': uuid, 'dest_uuid': signal.uuid}));
+                dest_UUID = signal.uuid
+                serverConnection.send(JSON.stringify({"msg_id": 9, 'uuid': uuid, 'dest_uuid': dest_UUID}));
                 peerConnection.addStream(localStream);
             }
             return;
@@ -224,6 +231,7 @@ function openDataChannel() {
         messageInputBox.disabled = false;
         messageInputBox.focus();
         sendButton.disabled = false;
+        serverConnection.close();
         channel.send('RTCDataChannel opened.');
     };
 
