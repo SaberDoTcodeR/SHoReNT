@@ -37,7 +37,7 @@ try {
 
     const wss = new WebSocketServer({server: httpsServer});
     var clients = {};
-    var conections = {};
+    var connections = {};
     wss.on('connection', function (ws) {
         var UUID = createUUID();
         clients[UUID] = ws;
@@ -58,8 +58,8 @@ try {
                     return;
                 case 5:
                     var client2 = clients[signal.dest_uuid];
-                    delete conections[signal.uuid];
-                    delete conections[signal.dest_uuid];
+                    delete connections[signal.uuid];
+                    delete connections[signal.dest_uuid];
                     client2.send(JSON.stringify({
                         "msg_id": 5,
                         'uuid': signal.dest_uuid,
@@ -75,32 +75,36 @@ try {
                 case 7:
                     var client = clients[signal.uuid];
                     var client2 = clients[signal.dest_uuid];
-                    conections[signal.uuid] = client2;
-                    conections[signal.dest_uuid] = client;
+                    connections[signal.uuid] = client2;
+                    connections[signal.dest_uuid] = client;
                     return;
                 case 8:
                     client2 = clients[signal.dest_uuid];
-                    if (conections[signal.dest_uuid]) {
-                        ws.send(JSON.stringify({
-                            "msg_id": 3,
-                            "error": "Sorry, but your mate is Busy right now."
-                        }));
-                    } else {
-                        client2.send(JSON.stringify({
-                            "msg_id": 8,
-                            "uuid": signal.uuid,
-                            "dest_uuid": signal.dest_uuid
-                        }));
+                    if (client2) {
+                        if (connections[signal.dest_uuid]) {
+                            ws.send(JSON.stringify({
+                                "msg_id": 3,
+                                "error": "Sorry, but your mate is Busy right now."
+                            }));
+                        } else {
+                            client2.send(JSON.stringify({
+                                "msg_id": 8,
+                                "uuid": signal.uuid,
+                                "dest_uuid": signal.dest_uuid
+                            }));
+                        }
                     }
                     return;
                 case 9:
                     var client2 = clients[signal.dest_uuid];
-                    if (!conections[signal.dest_uuid]) {
-                        client2.send(JSON.stringify({
-                            "msg_id": 9,
-                            "uuid": signal.dest_uuid,
-                            "dest_uuid": signal.uuid
-                        }));
+                    if (client2) {
+                        if (!connections[signal.dest_uuid]) {
+                            client2.send(JSON.stringify({
+                                "msg_id": 9,
+                                "uuid": signal.dest_uuid,
+                                "dest_uuid": signal.uuid
+                            }));
+                        }
                     }
                     return;
                 default:
@@ -120,7 +124,7 @@ try {
         if (clients.hasOwnProperty(data.dest_uuid)) {
             var client = clients[data.dest_uuid];
 
-            if (client.readyState === WebSocket.OPEN && !conections[data.dest_uuid]) {
+            if (client.readyState === WebSocket.OPEN && !connections[data.dest_uuid]) {
                 console.log(data.dest_uuid);
                 client.send(message);
                 return true;
