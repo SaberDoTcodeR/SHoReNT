@@ -15,7 +15,11 @@ try {
 // ----------------------------------------------------------------------------------------
 
 // Create a server for the client html page
-    const handleRequest = function (request, response) {
+
+
+
+    //for hosting files
+   /* const handleRequest = function (request, response) {
         // Render the single client html file for any request the HTTP server receives
         console.log('request received: ' + request.url);
 
@@ -26,9 +30,15 @@ try {
             response.writeHead(200, {'Content-Type': 'application/javascript'});
             response.end(fs.readFileSync('client/webrtc.js'));
         }
+         else if (request.url === '/aes.js') {
+            response.writeHead(200, {'Content-Type': 'application/javascript'});
+            response.end(fs.readFileSync('client/aes.js'));
+        }
     };
 
-    const httpsServer = https.createServer(serverConfig, handleRequest);
+    const httpsServer = https.createServer(serverConfig, handleRequest);*/
+
+    const httpsServer = https.createServer(serverConfig);
     httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 
 // ----------------------------------------------------------------------------------------
@@ -41,7 +51,7 @@ try {
     wss.on('connection', function (ws) {
         var UUID = createUUID();
         clients[UUID] = ws;
-        ws.send(JSON.stringify({"msg_id": 1, "uuid": UUID}));
+        ws.send(JSON.stringify({"msg_id": 'assign_UUID', "uuid": UUID}));
         console.log(UUID)
         ws.on('message', function (message) {
             var signal = JSON.parse(message);
@@ -49,58 +59,58 @@ try {
 
 
             switch (signal.msg_id) {
-                case 2:
-                case 4:
+                case 'ice_candidate':
+                case 'sdp':
                     if (!wss.send_offer(signal, message)) {
-                        ws.send(JSON.stringify({"msg_id": 3, "error": "Couldn't find anyone with given UUID"}));
+                        ws.send(JSON.stringify({"msg_id": 'error', "error": "Couldn't find anyone with given UUID"}));
                         return;
                     }
                     return;
-                case 5:
+                case 'disconnect_from_peer':
                     var client2 = clients[signal.dest_uuid];
                     delete connections[signal.uuid];
                     delete connections[signal.dest_uuid];
                     client2.send(JSON.stringify({
-                        "msg_id": 5,
+                        "msg_id": 'disconnect_from_peer',
                         'uuid': signal.dest_uuid,
                         'dest_uuid': signal.uuid
                     }));
                     return;
-                case 6:
+                case 'refuse_p2p_connection_request':
                     wss.send_offer(signal, JSON.stringify({
-                        "msg_id": 3,
+                        "msg_id": 'error',
                         "error": "Sorry, but your mate refused you, find some one else"
                     }));
                     return;
-                case 7:
+                case 'save_connection_in_hashtable':
                     var client = clients[signal.uuid];
                     var client2 = clients[signal.dest_uuid];
                     connections[signal.uuid] = client2;
                     connections[signal.dest_uuid] = client;
                     return;
-                case 8:
+                case 'p2p_connection_request':
                     client2 = clients[signal.dest_uuid];
                     if (client2) {
                         if (connections[signal.dest_uuid]) {
                             ws.send(JSON.stringify({
-                                "msg_id": 3,
+                                "msg_id": 'error',
                                 "error": "Sorry, but your mate is Busy right now."
                             }));
                         } else {
                             client2.send(JSON.stringify({
-                                "msg_id": 8,
+                                "msg_id": 'p2p_connection_request',
                                 "uuid": signal.uuid,
                                 "dest_uuid": signal.dest_uuid
                             }));
                         }
                     }
                     return;
-                case 9:
+                case 'accept_connection':
                     var client2 = clients[signal.dest_uuid];
                     if (client2) {
                         if (!connections[signal.dest_uuid]) {
                             client2.send(JSON.stringify({
-                                "msg_id": 9,
+                                "msg_id": 'accept_connection',
                                 "uuid": signal.dest_uuid,
                                 "dest_uuid": signal.uuid
                             }));
