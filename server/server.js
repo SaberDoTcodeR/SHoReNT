@@ -17,27 +17,25 @@ try {
 // Create a server for the client html page
 
 
-
     //for hosting files
-   /* const handleRequest = function (request, response) {
-        // Render the single client html file for any request the HTTP server receives
-        console.log('request received: ' + request.url);
-
-        if (request.url === '/') {
-            response.writeHead(200, {'Content-Type': 'text/html'});
-            response.end(fs.readFileSync('client/index.html'));
-        } else if (request.url === '/webrtc.js') {
-            response.writeHead(200, {'Content-Type': 'application/javascript'});
-            response.end(fs.readFileSync('client/webrtc.js'));
-        }
-         else if (request.url === '/aes.js') {
-            response.writeHead(200, {'Content-Type': 'application/javascript'});
-            response.end(fs.readFileSync('client/aes.js'));
-        }
-    };
-
-    const httpsServer = https.createServer(serverConfig, handleRequest);*/
-
+    // const handleRequest = function (request, response) {
+    //     // Render the single client html file for any request the HTTP server receives
+    //     console.log('request received: ' + request.url);
+    //
+    //     if (request.url === '/') {
+    //         response.writeHead(200, {'Content-Type': 'text/html'});
+    //         response.end(fs.readFileSync('client/index.html'));
+    //     } else if (request.url === '/webrtc.js') {
+    //         response.writeHead(200, {'Content-Type': 'application/javascript'});
+    //         response.end(fs.readFileSync('client/webrtc.js'));
+    //     } else if (request.url === '/aes.js') {
+    //         response.writeHead(200, {'Content-Type': 'application/javascript'});
+    //         response.end(fs.readFileSync('client/aes.js'));
+    //     }
+    // };
+    //
+    // const httpsServer = https.createServer(serverConfig, handleRequest);
+    //
     const httpsServer = https.createServer(serverConfig);
     httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 
@@ -67,14 +65,9 @@ try {
                     }
                     return;
                 case 'disconnect_from_peer':
-                    var client2 = clients[signal.dest_uuid];
+
                     delete connections[signal.uuid];
                     delete connections[signal.dest_uuid];
-                    client2.send(JSON.stringify({
-                        "msg_id": 'disconnect_from_peer',
-                        'uuid': signal.dest_uuid,
-                        'dest_uuid': signal.uuid
-                    }));
                     return;
                 case 'refuse_p2p_connection_request':
                     wss.send_offer(signal, JSON.stringify({
@@ -109,14 +102,20 @@ try {
                     var client2 = clients[signal.dest_uuid];
                     if (client2) {
                         if (!connections[signal.dest_uuid]) {
-                            client2.send(JSON.stringify({
-                                "msg_id": 'accept_connection',
-                                "uuid": signal.dest_uuid,
-                                "dest_uuid": signal.uuid
-                            }));
+                            try {
+                                client2.send(JSON.stringify({
+                                    "msg_id": 'accept_connection',
+                                    "uuid": signal.dest_uuid,
+                                    "dest_uuid": signal.uuid
+                                }));
+                            }
+                            catch (e) {
+                                
+                            }
                         }
                     }
                     return;
+
                 default:
                     console.log("why the fucK", signal);
 
@@ -124,7 +123,7 @@ try {
 
         });
         ws.on('error', function (err) {
-            console.log('error!');
+            console.log(err);
             return;
         });
     });
@@ -162,5 +161,6 @@ function createUUID() {
         return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
     }
 
-    return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+    return s4();
+    //return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }

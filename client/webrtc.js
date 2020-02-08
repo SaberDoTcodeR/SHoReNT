@@ -4,10 +4,13 @@ var remoteVideo;
 var peerConnection;
 var serverConnection;
 var channel;
-let websocket_ip = 'localhost';
+let websocket_ip = '194.225.46.57';
 let uuid;
 let dest_UUID;
 let symmetric_password;
+let bool_video_chat;
+var before_uuid;
+var before_dest_uuid;
 
 var peerConnectionConfig = {
     'iceServers': [
@@ -21,9 +24,11 @@ function startup() {
     sendButton = document.getElementById('sendButton');
     messageInputBox = document.getElementById('message');
     receiveBox = document.getElementById('receivebox');
-
+    videoCheck = document.getElementById('video');
     // Set event listeners for user interface widgets
 
+    messageInputBox.disabled = true;
+    sendButton.disabled = true;
     sendButton.addEventListener('click', sendMessage, false);
 }
 
@@ -62,10 +67,14 @@ function handleReceiveChannelStatusChange(event) {
     if (receiveChannel) {
         console.log("Receive channel's status has changed to " +
             receiveChannel.readyState);
+        if (receiveChannel.readyState === 'closed') {
+            dest_UUID = null;
+            remoteVideo.srcObject = null;
+            messageInputBox.disabled = true;
+            sendButton.disabled = true;
+        }
     }
 
-    // Here you would do stuff that needs to be done
-    // when the channel's status changes.
 }
 
 function pageReady() {
@@ -77,30 +86,44 @@ function pageReady() {
     serverConnection = new WebSocket('wss://' + websocket_ip + ':8443');
     serverConnection.onmessage = gotMessageFromServer;
 
-    var constraints = {
-        video: true,
-        audio: true,
-    };
-
-    if (navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia(constraints).then(getUserMediaSuccess).catch(errorHandler);
-
-    } else {
-        alert('Your browser does not support getUserMedia API');
-    }
 }
 
 function getUserMediaSuccess(stream) {
     localStream = stream;
     localVideo.srcObject = stream;
+    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
 
 }
 
 function start(isCaller) {
+    bool_video_chat = videoCheck.checked;
     peerConnection = new RTCPeerConnection(peerConnectionConfig);
     peerConnection.onicecandidate = gotIceCandidate;
+    if (bool_video_chat) {
+        try {
+            var constraints = {
+                video: true,
+                audio: true,
+            };
+            if (navigator.mediaDevices.getUserMedia)
+                navigator.mediaDevices.getUserMedia(constraints).then(getUserMediaSuccess).catch(errorHandler);
+            else
+                alert('Your browser does not support getUserMedia API');
 
-    peerConnection.ontrack = gotRemoteStream;
+        } catch (e) {
+            alert('There is problem in accessing camera')
+        }
+    } else {
+
+        localStream = null;
+        localVideo.srcObject = null;
+    }
+    try {
+        peerConnection.ontrack = gotRemoteStream;
+
+    } catch (e) {
+        alert('There is problem in accessing your peer\'s camera')
+    }
     if (serverConnection.readyState === WebSocket.CLOSED) {
         serverConnection = new WebSocket('wss://' + websocket_ip + ':8443');
         serverConnection.onmessage = gotMessageFromServer;
@@ -133,12 +156,21 @@ function gotMessageFromServer(message) {
         case 'assign_UUID':
             uuid = signal.uuid;
             console.log(uuid);
+            if (before_uuid) {
+                serverConnection.send(JSON.stringify({
+                    "msg_id": 'disconnect_from_peer',
+                    'uuid': before_uuid,
+                    'dest_uuid': before_dest_uuid
+                }));
+                before_uuid = null;
+                before_dest_uuid = null;
+            }
             return;
         case 'ice_candidate':
             if (peerConnection.remoteDescription) {
-                console.log(signal.ice);
+
                 signal.ice.candidate = CryptoJS.AES.decrypt(signal.ice.candidate, symmetric_password).toString(CryptoJS.enc.Utf8);
-                console.log(signal.ice);
+
                 peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice)).catch(errorHandler);
             }
             return;
@@ -148,7 +180,7 @@ function gotMessageFromServer(message) {
             return;
         case 'sdp':
             signal.sdp.sdp = CryptoJS.AES.decrypt(signal.sdp.sdp, symmetric_password).toString(CryptoJS.enc.Utf8);
-            console.log(signal.sdp);
+            //console.log(signal.sdp);
             peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(function () {
                 if (signal.sdp.type === 'offer') {
                     dest_UUID = signal.uuid;
@@ -179,12 +211,14 @@ function gotMessageFromServer(message) {
                     'uuid': uuid,
                     'dest_uuid': dest_UUID
                 }));
-                peerConnection.addStream(localStream);
+                if (bool_video_chat)
+                    peerConnection.addStream(localStream);
             }
             return;
         case 'accept_connection':
             peerConnection.createOffer().then(createdDescription).catch(errorHandler);
-            peerConnection.addStream(localStream);
+            if (bool_video_chat)
+                peerConnection.addStream(localStream);
             return;
         default:
 
@@ -237,7 +271,7 @@ function openDataChannel() {
 
     channel = peerConnection.createDataChannel('RTCDataChannel',
         {
-            reliable: false
+            reliable: true
         }
     );
 
@@ -265,8 +299,11 @@ function openDataChannel() {
 }
 
 function cancel(is_starter) {
-    if (is_starter)
-        serverConnection.send(JSON.stringify({"msg_id": 'disconnect_from_peer', 'uuid': uuid, 'dest_uuid': dest_UUID}));
+    if (is_starter) {
+        before_uuid = uuid;
+        before_dest_uuid = dest_UUID;
+        serverConnection = new WebSocket('wss://' + websocket_ip + ':8443');
+    }
     dest_UUID = null;
     remoteVideo.srcObject = null;
     messageInputBox.disabled = true;

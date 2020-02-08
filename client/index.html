@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
     <script src="webrtc.js"></script>
     <script src="aes.js"></script>
 </head>
@@ -11,11 +10,16 @@
 <video id="remoteVideo" autoplay style="width:40%;"></video>
 
 <br/>
+<label class="container">video
+    <input type="checkbox" checked="checked" id="video"/>
+
+    <span></span>
+</label>
 
 <input type="button" id="start" onclick="start(true)" value="Start Video"/>
 <input type="button" id="cancel" onclick="cancel(true)" value="cancel"/>
-<a href="https://81.31.176.13:8443" target="_blank"><input type="button" id="accept_security"
-                                                           value="accept security"/></a>
+<a href="https://194.225.46.57:8443" target="_blank"><input type="button" id="accept_security"
+                                                             value="accept security"/></a>
 <form id="fileInfo">
     <input type="file" id="fileInput" name="files"/>
 </form>
