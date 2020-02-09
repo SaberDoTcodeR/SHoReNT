@@ -403,7 +403,7 @@ function openDataChannel() {
     fileChannelHandler();
     chatChannel = peerConnection.createDataChannel('chatChannel',
         {
-            reliable: true,
+            reliable: false,
             maxPacketLifeTime: 3000
         }
     );
