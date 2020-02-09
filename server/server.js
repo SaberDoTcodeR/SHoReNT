@@ -18,25 +18,25 @@ try {
 
 
     //for hosting files
-    // const handleRequest = function (request, response) {
-    //     // Render the single client html file for any request the HTTP server receives
-    //     console.log('request received: ' + request.url);
-    //
-    //     if (request.url === '/') {
-    //         response.writeHead(200, {'Content-Type': 'text/html'});
-    //         response.end(fs.readFileSync('client/index.html'));
-    //     } else if (request.url === '/webrtc.js') {
-    //         response.writeHead(200, {'Content-Type': 'application/javascript'});
-    //         response.end(fs.readFileSync('client/webrtc.js'));
-    //     } else if (request.url === '/aes.js') {
-    //         response.writeHead(200, {'Content-Type': 'application/javascript'});
-    //         response.end(fs.readFileSync('client/aes.js'));
-    //     }
-    // };
-    //
-    // const httpsServer = https.createServer(serverConfig, handleRequest);
-    //
-    const httpsServer = https.createServer(serverConfig);
+    const handleRequest = function (request, response) {
+        // Render the single client html file for any request the HTTP server receives
+        console.log('request received: ' + request.url);
+
+        if (request.url === '/') {
+            response.writeHead(200, {'Content-Type': 'text/html'});
+            response.end(fs.readFileSync('client/index.html'));
+        } else if (request.url === '/webrtc.js') {
+            response.writeHead(200, {'Content-Type': 'application/javascript'});
+            response.end(fs.readFileSync('client/webrtc.js'));
+        } else if (request.url === '/aes.js') {
+            response.writeHead(200, {'Content-Type': 'application/javascript'});
+            response.end(fs.readFileSync('client/aes.js'));
+        }
+    };
+
+    const httpsServer = https.createServer(serverConfig, handleRequest);
+
+   // const httpsServer = https.createServer(serverConfig);
     httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 
 // ----------------------------------------------------------------------------------------
