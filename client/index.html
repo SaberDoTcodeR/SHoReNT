@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
     <script src="webrtc.js"></script>
     <script src="aes.js"></script>
 </head>
@@ -11,25 +10,28 @@
 <video id="remoteVideo" autoplay style="width:40%;"></video>
 
 <br/>
+<label class="container">video
+    <input type="checkbox" checked="checked" id="video"/>
+
+    <span></span>
+</label>
 
 <input type="button" id="start" onclick="start(true)" value="Start Video"/>
 <input type="button" id="cancel" onclick="cancel(true)" value="cancel"/>
-<a href="https://81.31.176.13:8443" target="_blank"><input type="button" id="accept_security"
-                                                           value="accept security"/></a>
+<a href="https://194.225.46.57:8443" target="_blank"><input type="button" id="accept_security"
+                                                             value="accept security"/></a>
 <form id="fileInfo">
-    <input type="file" id="fileInput" name="files"/>
+    <input type="file" onchange="uploadFile()" id="fileTransfer" name="files"/>
 </form>
-<button disabled id="sendFile">Send</button>
+<button id="sendFile" onclick="sendFile()">Send</button>
 <button disabled id="abortButton">Abort</button>
-<div class="progress">
-    <div class="label">Send progress:</div>
-    <progress id="sendProgress" max="0" value="0"></progress>
-</div>
-
-<div class="progress">
-    <div class="label">Receive progress:</div>
-    <progress id="receiveProgress" max="0" value="0"></progress>
-</div>
+<br/><br/>
+File upload progress: <br/>
+<progress value="0" id="sendFileProg"></progress>
+<br/><br/>
+Receive file progress: <br/>
+<progress value="0" id="recFileProg"></progress>
+<a href="javascript:void(null);" id="fileDownload"></a>
 
 <div id="bitrate"></div>
 <a id="download"></a>
